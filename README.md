@@ -35,7 +35,7 @@ This engine is engineered as an ultra-fast alternative to Uber H3 and Google S2 
 
 ### 1. Installation
 ```bash
-go get ://github.com
+go get github.com/unihycom/sierpinski9
 ```
 
 ### 2. Forward Geocoding (Lat/Lon to Base9ID)
