@@ -45,7 +45,7 @@ package main
 
 import (
 	"fmt"
-	"://github.com"
+	"github.com/unihycom/sierpinski9"
 )
 
 func main() {
@@ -67,7 +67,7 @@ package main
 
 import (
 	"fmt"
-	"://github.com"
+	"github.com/unihycom/sierpinski9"
 )
 
 func main() {
