@@ -324,6 +324,56 @@ func Geocode(lat, lon float64, targetDepth uint64) Base9ID {
 	return currentID
 }
 
+// CompactCells сжимает слайс индексов, объединяя полные девятки детей в родителей.
+// Входной слайс должен содержать уникальные ячейки одинаковой известной глубины.
+func CompactCells(cells []Base9ID) []Base9ID {
+	if len(cells) < 9 {
+		return cells
+	}
+
+	// Карта для отслеживания уникальных детей у каждого родителя
+	// Ключ: parentID, Значение: битовая маска найденных детей (0-8 позиций)
+	parentGroups := make(map[Base9ID]uint16)
+
+	for _, cell := range cells {
+		parentID := Base9ID(uint64(cell) / 9)
+		localIdx := uint64(cell) % 9
+
+		// Выставляем бит, соответствующий локальному индексу ребенка (0..8)
+		parentGroups[parentID] |= (1 << localIdx)
+	}
+
+	var compacted []Base9ID
+	hasChanges := false
+
+	// Полная маска для 9 детей: 1<<0 | 1<<1 | ... | 1<<8 = 511 (0x1FF)
+	const fullNinePattern uint16 = 0x1FF
+
+	for parentID, mask := range parentGroups {
+		if mask == fullNinePattern {
+			// Все 9 детей на месте! Схлопываем их в одного родителя
+			compacted = append(compacted, parentID)
+			hasChanges = true
+		} else {
+			// Группа неполная, возвращаем выживших детей обратно в итоговый массив
+			for localIdx := uint64(0); localIdx < 9; localIdx++ {
+				if (mask & (1 << localIdx)) != 0 {
+					childCell := Base9ID(uint64(parentID)*9 + localIdx)
+					compacted = append(compacted, childCell)
+				}
+			}
+		}
+	}
+
+	// Если на этом уровне произошли схлопывания, запускаем рекурсию вверх,
+	// так как новые родители могут образовать полноценную девятку уровнем выше!
+	if hasChanges {
+		return CompactCells(compacted)
+	}
+
+	return compacted
+}
+
 type SphericalPolygon []Vector3
 
 func (poly SphericalPolygon) IsPointInPolygon(p Vector3) bool {
