@@ -7,9 +7,27 @@
 *.dll
 *.so
 *.dylib
+*.test
+*.prof
+
+/sierpinski9
+/main
+
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
 
 # Test binary, built with `go test -c`
 *.test
+_obj/
+_test/
 
 # Code coverage profiles and other test artifacts
 *.out
@@ -30,4 +48,7 @@ go.work.sum
 
 # Editor/IDE
 # .idea/
-# .vscode/
+.vscode/
+!.vscode/extensions.json
+.history/
+*.code-workspace
