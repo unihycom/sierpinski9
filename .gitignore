@@ -47,8 +47,10 @@ go.work.sum
 .env
 
 # Editor/IDE
-# .idea/
+.idea/
 .vscode/
 !.vscode/extensions.json
 .history/
 *.code-workspace
+
+ignore_readme.txt
