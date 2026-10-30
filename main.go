@@ -5,7 +5,7 @@ import (
 	"math"
 )
 
-// Base9ID инкапсулирует девятеричный гео-индекс
+// Base9ID инкапсулирует девятеричный гео-индекс.
 type Base9ID uint64
 
 type Direction int
@@ -16,46 +16,44 @@ const (
 	Edge2
 )
 
-// IsInscribedCircle возвращает true, если ячейка не является крайней вершиной родителя
+// IsInscribedCircle возвращает true, если ячейка не является крайней вершиной родителя (вписанный фильтр круга).
 func (id Base9ID) IsInscribedCircle() bool {
 	if uint64(id) <= 7 {
 		return true
 	}
 	localIndex := uint64(id) % 9
-	// В правильной барицентрической сетке углами родителя являются индексы 0, 3 и 6
 	return localIndex != 0 && localIndex != 3 && localIndex != 6
 }
 
-// PushStep добавляет уровень фрактала
+// PushStep добавляет уровень фрактала (спуск на уровень детализации вниз).
 func (id Base9ID) PushStep(childIndex uint64) Base9ID {
 	return Base9ID(uint64(id)*9 + childIndex)
 }
 
-type Vector3 struct {
-	X, Y, Z float64
-}
-
-func (v Vector3) Normalize() Vector3 {
-	len := math.Sqrt(v.X*v.X + v.Y*v.Y + v.Z*v.Z)
-	if len == 0 {
-		return Vector3{0, 0, 0}
+func (id Base9ID) GetNeighbor(dir Direction) Base9ID {
+	localIndex := uint64(id) % 9
+	parentID := uint64(id) / 9
+	switch dir {
+	case Edge0:
+		if localIndex == 1 {
+			return Base9ID(parentID*9 + 0)
+		}
+		if localIndex == 4 {
+			return Base9ID(parentID*9 + 3)
+		}
+		return Base9ID(uint64(id) + 1)
+	case Edge1:
+		if localIndex == 1 {
+			return Base9ID(parentID*9 + 3)
+		}
+		return Base9ID(uint64(id) ^ 1)
+	case Edge2:
+		if localIndex == 1 {
+			return Base9ID(parentID*9 + 5)
+		}
+		return Base9ID(uint64(id) ^ 2)
 	}
-	return Vector3{v.X / len, v.Y / len, v.Z / len}
-}
-
-// ToLatLng переводит 3D-вектор единичной сферы обратно в географические градусы (Широта, Долгота)
-func (v Vector3) ToLatLng() (float64, float64) {
-	latRad := math.Asin(v.Z)
-	lonRad := math.Atan2(v.Y, v.X)
-
-	latDeg := latRad * 180.0 / math.Pi
-	lonDeg := lonRad * 180.0 / math.Pi
-
-	return latDeg, lonDeg
-}
-
-func (v Vector3) Add(other Vector3) Vector3 {
-	return Vector3{v.X + other.X, v.Y + other.Y, v.Z + other.Z}
+	return id
 }
 
 type TriangleA9 struct {
@@ -64,21 +62,22 @@ type TriangleA9 struct {
 	V0, V1, V2 Vector3
 }
 
-// Вспомогательная функция для точного вычисления точек по барицентрическим весам
+func (t TriangleA9) Center() Vector3 {
+	return t.V0.Add(t.V1).Add(t.V2).Normalize()
+}
+
 func barycentric(v0, v1, v2 Vector3, w0, w1, w2 float64) Vector3 {
 	return Vector3{
-		X: (v0.X*w0 + v1.X*w1 + v2.X*w2) / 3.0,
-		Y: (v0.Y*w0 + v1.Y*w1 + v2.Y*w2) / 3.0,
-		Z: (v0.Z*w0 + v1.Z*w1 + v2.Z*w2) / 3.0,
+		X: (v0.X*w0 + v1.X*w1 + v2.X*w2) * invThree,
+		Y: (v0.Y*w0 + v1.Y*w1 + v2.Y*w2) * invThree,
+		Z: (v0.Z*w0 + v1.Z*w1 + v2.Z*w2) * invThree,
 	}.Normalize()
 }
 
-// SubdivideA9 генерирует 9 дочерних ячеек через барицентрическое разбиение
 func (t TriangleA9) SubdivideA9() []TriangleA9 {
 	nextDepth := t.Depth + 1
 	baseID := t.ID
 
-	// Вычисляем 10 стабильных точек трисекции
 	v300 := t.V0
 	v210 := barycentric(t.V0, t.V1, t.V2, 2, 1, 0)
 	v120 := barycentric(t.V0, t.V1, t.V2, 1, 2, 0)
@@ -88,17 +87,16 @@ func (t TriangleA9) SubdivideA9() []TriangleA9 {
 	v003 := t.V2
 	v102 := barycentric(t.V0, t.V1, t.V2, 1, 0, 2)
 	v201 := barycentric(t.V0, t.V1, t.V2, 2, 0, 1)
-	v111 := barycentric(t.V0, t.V1, t.V2, 1, 1, 1) // Единый центр-центроид
+	v111 := barycentric(t.V0, t.V1, t.V2, 1, 1, 1)
 
-	// Формируем 9 смежных треугольников без щелей и наложений
 	return []TriangleA9{
-		{ID: baseID*9 + 0, Depth: nextDepth, V0: v300, V1: v210, V2: v201}, // Угол V0
+		{ID: baseID*9 + 0, Depth: nextDepth, V0: v300, V1: v210, V2: v201},
 		{ID: baseID*9 + 1, Depth: nextDepth, V0: v210, V1: v120, V2: v111},
 		{ID: baseID*9 + 2, Depth: nextDepth, V0: v210, V1: v201, V2: v111},
-		{ID: baseID*9 + 3, Depth: nextDepth, V0: v120, V1: v030, V2: v021}, // Угол V1
+		{ID: baseID*9 + 3, Depth: nextDepth, V0: v120, V1: v030, V2: v021},
 		{ID: baseID*9 + 4, Depth: nextDepth, V0: v120, V1: v021, V2: v111},
 		{ID: baseID*9 + 5, Depth: nextDepth, V0: v021, V1: v012, V2: v111},
-		{ID: baseID*9 + 6, Depth: nextDepth, V0: v012, V1: v003, V2: v102}, // Угол V2
+		{ID: baseID*9 + 6, Depth: nextDepth, V0: v012, V1: v003, V2: v102},
 		{ID: baseID*9 + 7, Depth: nextDepth, V0: v012, V1: v102, V2: v111},
 		{ID: baseID*9 + 8, Depth: nextDepth, V0: v201, V1: v102, V2: v111},
 	}
@@ -130,65 +128,6 @@ func getBaseOctantTriangle(octantID uint64) TriangleA9 {
 	default:
 		return TriangleA9{ID: 7, Depth: 0, V0: p5, V1: p4, V2: p1}
 	}
-}
-
-func CellToCoordinates(base9ID uint64, depth uint64) TriangleA9 {
-	var steps []uint64
-	val := base9ID
-	for i := uint64(0); i < depth; i++ {
-		steps = append(steps, val%9)
-		val /= 9
-	}
-	baseOctant := val
-
-	currentTriangle := getBaseOctantTriangle(baseOctant)
-
-	for i := len(steps) - 1; i >= 0; i-- {
-		targetChildIdx := steps[i]
-		children := currentTriangle.SubdivideA9()
-		currentTriangle = children[targetChildIdx]
-	}
-
-	return currentTriangle
-}
-
-func (v Vector3) DistanceTo(other Vector3) float64 {
-	dx := v.X - other.X
-	dy := v.Y - other.Y
-	dz := v.Z - other.Z
-	return math.Sqrt(dx*dx + dy*dy + dz*dz)
-}
-
-func ToGeoJSON(t TriangleA9) string {
-	lat0, lon0 := t.V0.ToLatLng()
-	lat1, lon1 := t.V1.ToLatLng()
-	lat2, lon2 := t.V2.ToLatLng()
-
-	coordinates := [][][]float64{
-		{
-			{lon0, lat0},
-			{lon1, lat1},
-			{lon2, lat2},
-			{lon0, lat0},
-		},
-	}
-
-	geoJSONMap := map[string]interface{}{
-		"type": "Feature",
-		"properties": map[string]interface{}{
-			"cell_id": t.ID,
-		},
-		"geometry": map[string]interface{}{
-			"type":        "Polygon",
-			"coordinates": coordinates,
-		},
-	}
-
-	jsonBytes, err := json.MarshalIndent(geoJSONMap, "", "  ")
-	if err != nil {
-		return "{}"
-	}
-	return string(jsonBytes)
 }
 
 func GetBaseOctant(v Vector3) (uint64, TriangleA9) {
@@ -224,30 +163,57 @@ func GetBaseOctant(v Vector3) (uint64, TriangleA9) {
 	}
 }
 
-func (id Base9ID) GetNeighbor(dir Direction) Base9ID {
-	localIndex := uint64(id) % 9
-	parentID := uint64(id) / 9
-	switch dir {
-	case Edge0:
-		if localIndex == 1 {
-			return Base9ID(parentID*9 + 0)
-		}
-		if localIndex == 4 {
-			return Base9ID(parentID*9 + 3)
-		}
-		return Base9ID(uint64(id) + 1)
-	case Edge1:
-		if localIndex == 1 {
-			return Base9ID(parentID*9 + 3)
-		}
-		return Base9ID(uint64(id) ^ 1)
-	case Edge2:
-		if localIndex == 1 {
-			return Base9ID(parentID*9 + 5)
-		}
-		return Base9ID(uint64(id) ^ 2)
+func CellToCoordinates(base9ID uint64, depth uint64) TriangleA9 {
+	var steps []uint64
+	val := base9ID
+	for i := uint64(0); i < depth; i++ {
+		steps = append(steps, val%9)
+		val /= 9
 	}
-	return id
+	baseOctant := val
+
+	currentTriangle := getBaseOctantTriangle(baseOctant)
+
+	for i := len(steps) - 1; i >= 0; i-- {
+		targetChildIdx := steps[i]
+		children := currentTriangle.SubdivideA9()
+		currentTriangle = children[targetChildIdx]
+	}
+
+	return currentTriangle
+}
+
+func Geocode(lat, lon float64, targetDepth uint64) Base9ID {
+	latRad := lat * math.Pi / 180.0
+	lonRad := lon * math.Pi / 180.0
+
+	targetPos := Vector3{
+		X: math.Cos(latRad) * math.Cos(lonRad),
+		Y: math.Cos(latRad) * math.Sin(lonRad),
+		Z: math.Sin(latRad),
+	}
+
+	octantID, currentTriangle := GetBaseOctant(targetPos)
+	currentID := Base9ID(octantID)
+
+	for d := uint64(1); d <= targetDepth; d++ {
+		children := currentTriangle.SubdivideA9()
+		bestChildIdx := 0
+		minDist := math.MaxFloat64
+
+		for idx, child := range children {
+			dist := targetPos.DistanceTo(child.Center())
+			if dist < minDist {
+				minDist = dist
+				bestChildIdx = idx
+			}
+		}
+
+		currentID = currentID.PushStep(uint64(bestChildIdx))
+		currentTriangle = children[bestChildIdx]
+	}
+
+	return currentID
 }
 
 func RangeQueryBFS(startCell Base9ID, k int) []Base9ID {
@@ -287,75 +253,27 @@ func RangeQueryBFS(startCell Base9ID, k int) []Base9ID {
 	return result
 }
 
-func (t TriangleA9) Center() Vector3 {
-	return t.V0.Add(t.V1).Add(t.V2).Normalize()
-}
-
-func Geocode(lat, lon float64, targetDepth uint64) Base9ID {
-	latRad := lat * math.Pi / 180.0
-	lonRad := lon * math.Pi / 180.0
-
-	targetPos := Vector3{
-		X: math.Cos(latRad) * math.Cos(lonRad),
-		Y: math.Cos(latRad) * math.Sin(lonRad),
-		Z: math.Sin(latRad),
-	}
-
-	octantID, currentTriangle := GetBaseOctant(targetPos)
-	currentID := Base9ID(octantID)
-
-	for d := uint64(1); d <= targetDepth; d++ {
-		children := currentTriangle.SubdivideA9()
-		bestChildIdx := 0
-		minDist := math.MaxFloat64
-
-		for idx, child := range children {
-			dist := targetPos.DistanceTo(child.Center())
-			if dist < minDist {
-				minDist = dist
-				bestChildIdx = idx
-			}
-		}
-
-		currentID = currentID.PushStep(uint64(bestChildIdx))
-		currentTriangle = children[bestChildIdx]
-	}
-
-	return currentID
-}
-
-// CompactCells сжимает слайс индексов, объединяя полные девятки детей в родителей.
-// Входной слайс должен содержать уникальные ячейки одинаковой известной глубины.
 func CompactCells(cells []Base9ID) []Base9ID {
 	if len(cells) < 9 {
 		return cells
 	}
 
-	// Карта для отслеживания уникальных детей у каждого родителя
-	// Ключ: parentID, Значение: битовая маска найденных детей (0-8 позиций)
 	parentGroups := make(map[Base9ID]uint16)
-
 	for _, cell := range cells {
 		parentID := Base9ID(uint64(cell) / 9)
 		localIdx := uint64(cell) % 9
-
-		// Выставляем бит, соответствующий локальному индексу ребенка (0..8)
 		parentGroups[parentID] |= (1 << localIdx)
 	}
 
 	var compacted []Base9ID
 	hasChanges := false
-
-	// Полная маска для 9 детей: 1<<0 | 1<<1 | ... | 1<<8 = 511 (0x1FF)
 	const fullNinePattern uint16 = 0x1FF
 
 	for parentID, mask := range parentGroups {
 		if mask == fullNinePattern {
-			// Все 9 детей на месте! Схлопываем их в одного родителя
 			compacted = append(compacted, parentID)
 			hasChanges = true
 		} else {
-			// Группа неполная, возвращаем выживших детей обратно в итоговый массив
 			for localIdx := uint64(0); localIdx < 9; localIdx++ {
 				if (mask & (1 << localIdx)) != 0 {
 					childCell := Base9ID(uint64(parentID)*9 + localIdx)
@@ -365,8 +283,6 @@ func CompactCells(cells []Base9ID) []Base9ID {
 		}
 	}
 
-	// Если на этом уровне произошли схлопывания, запускаем рекурсию вверх,
-	// так как новые родители могут образовать полноценную девятку уровнем выше!
 	if hasChanges {
 		return CompactCells(compacted)
 	}
@@ -424,4 +340,36 @@ func (poly SphericalPolygon) fillRecursive(t TriangleA9, targetDepth uint64) []B
 		results = append(results, poly.fillRecursive(child, targetDepth)...)
 	}
 	return results
+}
+
+func ToGeoJSON(t TriangleA9) string {
+	lat0, lon0 := t.V0.ToLatLng()
+	lat1, lon1 := t.V1.ToLatLng()
+	lat2, lon2 := t.V2.ToLatLng()
+
+	coordinates := [][][]float64{
+		{
+			{lon0, lat0},
+			{lon1, lat1},
+			{lon2, lat2},
+			{lon0, lat0},
+		},
+	}
+
+	geoJSONMap := map[string]interface{}{
+		"type": "Feature",
+		"properties": map[string]interface{}{
+			"cell_id": t.ID,
+		},
+		"geometry": map[string]interface{}{
+			"type":        "Polygon",
+			"coordinates": coordinates,
+		},
+	}
+
+	jsonBytes, err := json.MarshalIndent(geoJSONMap, "", "  ")
+	if err != nil {
+		return "{}"
+	}
+	return string(jsonBytes)
 }
