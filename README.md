@@ -159,12 +159,12 @@ SELECT * FROM courier_positions WHERE cell_id IN (250, 251, 252, 253, 254);
 ---
 Classic Bisection (Aperture 4):        sierpinski9 Trisection (Aperture 9):
 ```
-			 /\                                       /\          
-		   /__\                                     /__\ 	 
+			 /\                                       /\ 
+		   /__\                                     /__\ 
 		  /\  /\                                   /\  /\  
-		 /__\/__\                                 /__\/__\    
-												           /\  /\  /\     
-                                              /__\/ _\/__\        
+		 /__\/__\                                 /__\/__\  
+												           /\  /\  /\ 
+                                              /__\/ _\/__\ 
 ```												    
 ### Key Engineering Advantages:
 
