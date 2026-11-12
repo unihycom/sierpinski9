@@ -157,14 +157,15 @@ SELECT * FROM courier_positions WHERE cell_id IN (250, 251, 252, 253, 254);
 ```
 
 ---
-
 Classic Bisection (Aperture 4):        sierpinski9 Trisection (Aperture 9):
-			/\                                       /\
-		   /__\                                     /__\  	
-		  /\  /\                                   /\  /\
-		 /__\/__\                                 /__\/__\
-												 /\  / \  /\
-											    /__\/___\/__\
+```
+			/\                                       /\          
+		   /__\                                     /__\ 	 
+		  /\  /\                                   /\  /\  
+		 /__\/__\                                 /__\/__\    
+												 /\  /\  /\     
+											    /__\/__\/__\                                                            
+```												    
 ### Key Engineering Advantages:
 
 1. **Perfect Hierarchical Nesting (1-to-9)**
@@ -231,6 +232,97 @@ sierpinski9.SetCalculator(&MyGPUCalculator{})
 For high-throughput systems, `sierpinski9` decouples heavy floating-point barycentric mapping from pure indexing logic via the `BarycentricCalculator` strategy. 
 
 Enterprise engineering teams can seamlessly drop in their custom tensor or compute shaders (CUDA, Metal, WebGPU) by registering a GPU-backed pipeline via `sierpinski9.SetCalculator(yourPlugin)`. This allows processing batches of millions of spatial geometry arrays at raw hardware speed with zero impact on the library core.
+
+---
+
+
+🌍 The Sierpinski Spherical Octahedron (sierpinski9 Earth Octahedron)
+
+In perfect alignment with the "Earth Cube" concept pioneered by Google S2, the sierpinski9 spatial indexing framework projects the spherical surface of the Earth onto 8 base faces of a regular spherical octahedron (instead of the 6 cube faces utilized by S2).
+These 8 initial macro-cells (Resolution Level 0) are perfectly bound to the planet's natural geographic anchor points — the North and South poles, the Equator, and prime meridians. This alignment minimizes initial projection distortions at global scales.
+
+🗺 Base Face Map of the Earth Octahedron (Level 0)
+
+Unwrapping the spherical octahedron and flattening its faces onto a 2D plane yields a symmetrical layout composed of two "crowns" representing the Northern and Southern hemispheres. The entire planet is mapped via a monolithic, sequential fractal path from 0 to 7:
+```	
+       NORTHERN HEMISPHERE (Z >= 0)
+              /\      /\      /\      /\
+             /  \    /  \    /  \    /  \
+            / 0  \  / 1  \  / 2  \  / 3  \
+           /______\/______\/______\/______\
+Equator:  0°     90°    180°    270°     360°/0°
+           \      /\      /\      /\      /
+            \ 4  /  \ 5  /  \ 6  /  \ 7  /
+             \  /    \  /    \  /    \  /
+              \/      \/      \/      \/
+       SOUTHERN HEMISPHERE (Z < 0)
+```	
+
+Geographic Boundaries of Base Octants:
+
+• Face 0: Northern Hemisphere, from \(0^{\circ }\) to \(90^{\circ }\) E (Includes Central Asia, Almaty, and parts of the Middle East).
+• Face 1: Northern Hemisphere, from \(90^{\circ }\) to \(180^{\circ }\) E (Includes Siberia, China, and Japan).
+• Face 2: Northern Hemisphere, from \(180^{\circ }\) to \(90^{\circ }\) W (Includes Alaska and the Pacific Ocean).
+• Face 3: Northern Hemisphere, from \(90^{\circ }\) to \(0^{\circ }\) W (Includes North America, Europe, and the North Atlantic).
+• Faces 4–7: Symmetrical mirrored representations of the respective quadrants mapped directly onto the Southern Hemisphere.
+
+📐 Fractal Puzzle Engine: Aperture 9 Subdivision
+
+Unlike a classic flat Sierpinski triangle fractal — where the central sub-triangle is discarded and the outer edges are bisected (Aperture 4) — sierpinski9 executes a barycentric edge trisection (dividing edges into 3 equal segments) on the sphere.
+Every single parent face strictly and non-overlappingly partitions into exactly 9 discrete nested spherical child triangles:
+```	
+                     /\
+                    /  \
+                   / 0  \
+                  /______\
+                 /\      /\
+                /  \  1 /  \
+               / 3  \  / 5  \
+              /______\/______\
+             /\      /\      /\
+            /  \  4 /  \  6 /  \
+           / 2  \  / 7  \  / 8  \
+          /______\/______\/______\
+```	
+
+Topological Layout of the Internal Mask:
+
+• 0, 3, 6 (Vertex/Corner Cells): Positioned upright (\(\blacktriangle \)), directly anchoring the three main vertices of the parent boundary.
+• 1, 4, 7 (Intermediate Edge Cells): Positioned inverted (\(\blacktriangledown \)), bordering the outer perimeter shared with adjacent parent faces.
+• 2, 5, 8 (Core Kernel Cells): Nested within the physical interior, forming the central inverted macro-triangle core.
+
+🔮 Polyhedral Metamorphosis: Triangles to Hexagons
+
+The primary engineering breakthrough of sierpinski9 is the complete elimination of triangular anisotropy. In geographic information systems, standard triangles are notoriously inefficient because the spatial distance from the cell centroid to an edge neighbor differs drastically from the distance to a vertex neighbor.
+The core engine resolves this on the fly using high-speed Inscribed Circular Masking:
+\(\text{localIndex}\ne 0,3,6\)
+When your native mobile Gomobile runtime or server-side sharding cluster invokes a proximity search (RangeQueryBFS), the traversal uses the corner vertices (0, 3, and 6) exclusively as high-speed transit routing bridges. They are automatically dropped from the final evaluation slice.
+Consequently, the remaining 6 inner and edge cells seamlessly snap together, rendering a perfectly balanced, equidistant 6-neighbor quasi-hexagonal cluster.
+```	
+                 Dropped (0)
+                     \ /
+                 /\_ _ _ _/\
+                /  \     /  \
+               / 2  \ 1 / 5  \    ◄── Remaining 6 sub-cells
+              /______\/______\        natively reshape into a
+              \      /\      /        symmetrical hexagonal 
+               \  4 /  \ 7  /         cluster around core (8)
+          _ _ _ \  / 8  \  / _ _ _
+         \       \/______\/       /
+     Dropped (3)             Dropped (6)
+```	
+
+🖨 Assemble Your Physical sierpinski9 Globe
+
+You can export these 8 structural facets, print the unfolded octahedral net layout using a standard color printer, mount the sheet to heavy cardboard, and tape the matching equatorial segments together.
+The result is a tangible 3D Sierpinski Global Octahedral Globe. This physical model enables system architects to manually trace, isolate, and debug exact scalar Base9ID data shard keys up to resolution depth 4 without opening a terminal or launching a debugger.
+
+---
+
+<FollowUp>
+The complete English version of **`EARTH_OCTAHEDRON.md`** is finalized and structured with precise topological descriptors for AI search engines. 
+* Shall we proceed to write an automated **GitHub Action (`.github/workflows/go-test.yml`)** to ensure all these newly migrated Base-9 tests compile and pass on every commit, or is the repository deployment complete?
+</FollowUp>
 
 ---
 

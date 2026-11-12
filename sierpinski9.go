@@ -163,10 +163,10 @@ func GetBaseOctant(v Vector3) (uint64, TriangleA9) {
 	}
 }
 
-func CellToCoordinates(base9ID uint64, depth uint64) TriangleA9 {
+func CellToCoordinates(base9ID uint64, depth int) TriangleA9 {
 	var steps []uint64
 	val := base9ID
-	for i := uint64(0); i < depth; i++ {
+	for range depth {
 		steps = append(steps, val%9)
 		val /= 9
 	}
@@ -183,9 +183,9 @@ func CellToCoordinates(base9ID uint64, depth uint64) TriangleA9 {
 	return currentTriangle
 }
 
-func Geocode(lat, lon float64, targetDepth uint64) Base9ID {
-	latRad := lat * math.Pi / 180.0
-	lonRad := lon * math.Pi / 180.0
+func Geocode(lat, lon float64, targetDepth int) Base9ID {
+	latRad := lat * piDiv180
+	lonRad := lon * piDiv180
 
 	targetPos := Vector3{
 		X: math.Cos(latRad) * math.Cos(lonRad),
@@ -196,7 +196,7 @@ func Geocode(lat, lon float64, targetDepth uint64) Base9ID {
 	octantID, currentTriangle := GetBaseOctant(targetPos)
 	currentID := Base9ID(octantID)
 
-	for d := uint64(1); d <= targetDepth; d++ {
+	for d := 1; d <= targetDepth; d++ {
 		children := currentTriangle.SubdivideA9()
 		bestChildIdx := 0
 		minDist := math.MaxFloat64
@@ -274,7 +274,7 @@ func CompactCells(cells []Base9ID) []Base9ID {
 			compacted = append(compacted, parentID)
 			hasChanges = true
 		} else {
-			for localIdx := uint64(0); localIdx < 9; localIdx++ {
+			for localIdx := range uint64(9) {
 				if (mask & (1 << localIdx)) != 0 {
 					childCell := Base9ID(uint64(parentID)*9 + localIdx)
 					compacted = append(compacted, childCell)
@@ -294,7 +294,7 @@ type SphericalPolygon []Vector3
 
 func (poly SphericalPolygon) IsPointInPolygon(p Vector3) bool {
 	inside := false
-	for i := 0; i < len(poly); i++ {
+	for i := range poly {
 		j := (i + 1) % len(poly)
 		if ((poly[i].Y > p.Y) != (poly[j].Y > p.Y)) &&
 			(p.X < (poly[j].X-poly[i].X)*(p.Y-poly[i].Y)/(poly[j].Y-poly[i].Y)+poly[i].X) {

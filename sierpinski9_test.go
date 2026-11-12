@@ -5,14 +5,11 @@ import (
 	"testing"
 )
 
-// Измеренная точность дельты для координат на сфере (около 11 см на высоких уровнях)
-const maxAllowedDelta = 1e-6
-
 // TestGeocodeAndDecode проверяет стабильность геокодирования: LatLng -> CellID -> LatLng
 func TestGeocodeAndDecode(t *testing.T) {
 	originLat := 43.2389 // Алматы
 	originLon := 76.8897
-	depth := uint64(6)
+	depth := 6
 
 	cellID := Geocode(originLat, originLon, depth)
 	if cellID == 0 {
@@ -27,7 +24,7 @@ func TestGeocodeAndDecode(t *testing.T) {
 	lonDelta := math.Abs(originLon - decLon)
 
 	// Мягкий базовый лимит точности для 6-го уровня вложенности
-	if latDelta > 0.5 || lonDelta > 0.5 {
+	if latDelta > .5 || lonDelta > .5 {
 		t.Errorf("Coordinates delta too high. Lat: %f, Lon: %f", latDelta, lonDelta)
 	}
 }
@@ -43,7 +40,7 @@ func TestGeocodingHighPrecision(t *testing.T) {
 		{"New York, USA", 40.7128, -74.0060},
 	}
 
-	targetLevel := uint64(12)
+	targetLevel := 12
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
@@ -57,8 +54,8 @@ func TestGeocodingHighPrecision(t *testing.T) {
 			decodedTriangle := CellToCoordinates(uint64(cellID), targetLevel)
 
 			// 3. Переводим исходную точку теста в 3D Vector3 на сфере для проверки
-			latRad := tc.lat * math.Pi / 180.0
-			lonRad := tc.lon * math.Pi / 180.0
+			latRad := tc.lat * piDiv180 
+			lonRad := tc.lon * piDiv180 
 			targetVector := Vector3{
 				X: math.Cos(latRad) * math.Cos(lonRad),
 				Y: math.Cos(latRad) * math.Sin(lonRad),
@@ -77,7 +74,7 @@ func TestGeocodingHighPrecision(t *testing.T) {
 				deltaLat := math.Abs(resLat - tc.lat)
 				deltaLon := math.Abs(resLon - tc.lon)
 
-				if deltaLat > 0.001 || deltaLon > 0.001 {
+				if deltaLat > .001 || deltaLon > .001 {
 					t.Errorf("Критическая ошибка точности для %s: точка находится вне радиуса ячейки. Дельта: (Lat: %f, Lon: %f)",
 						tc.name, deltaLat, deltaLon)
 				}
@@ -165,7 +162,7 @@ func TestCompactionA9(t *testing.T) {
 func BenchmarkGeocode(b *testing.B) {
 	lat := 43.2389
 	lon := 76.8897
-	depth := uint64(10)
+	depth := 10
 
 	for b.Loop() {
 		_ = Geocode(lat, lon, depth)
@@ -182,7 +179,7 @@ func BenchmarkBarycentricCPU(b *testing.B) {
 	w1 := make([]float64, size)
 	w2 := make([]float64, size)
 
-	for i := 0; i < size; i++ {
+	for i := range size {
 		v0[i] = Vector3{X: 1.0, Y: 0.0, Z: 0.0}
 		v1[i] = Vector3{X: 0.0, Y: 1.0, Z: 0.0}
 		v2[i] = Vector3{X: 0.0, Y: 0.0, Z: 1.0}
@@ -191,8 +188,7 @@ func BenchmarkBarycentricCPU(b *testing.B) {
 		w2[i] = 0.334
 	}
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		_, err := DefaultCalculator.ComputeBatch(v0, v1, v2, w0, w1, w2)
 		if err != nil {
 			b.Fatalf("Ошибка бенчмарка калькулятора: %v", err)
